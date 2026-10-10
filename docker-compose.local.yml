@@ -1,0 +1,43 @@
+name: browseprompt-local
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env.local
+    environment:
+      NODE_ENV: production
+      LOCAL_DEVELOPMENT: "true"
+      SITE_URL: http://localhost:3000
+      DATABASE_URL: postgres://browseprompt:${POSTGRES_PASSWORD}@db:5432/browseprompt
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - uploads:/app/uploads
+      - private_files:/app/private-files
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: browseprompt
+      POSTGRES_USER: browseprompt
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U browseprompt"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  private_files:
+  postgres_data:
+  uploads:
